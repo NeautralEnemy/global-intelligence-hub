@@ -52,7 +52,7 @@
     h1 { margin: 0 0 8px; font-size: 1.35rem; }
     .sub { margin: 0; color: var(--muted); line-height: 1.45; font-size: .95rem; }
     .toolbar {
-      display: grid; grid-template-columns: 1fr 170px; gap: 10px; margin-top: 12px;
+      display: grid; grid-template-columns: 1fr 170px 170px; gap: 10px; margin-top: 12px;
     }
     input, select, textarea {
       width: 100%; background: var(--panel2); color: var(--text);
@@ -145,13 +145,17 @@
       <div class="overlay">
         <div class="titlebox">
           <h1>Global Intelligence Hub V1.5</h1>
-          <p class="sub">Built from the simpler Version 1 approach: 3D globe, embedded country dataset, country risk overview, better country stats, local notes, and optional live public reporting.</p>
+          <p class="sub">Built from the simpler Version 1 approach: 3D globe, embedded country dataset, country risk overview, better country stats, local notes, optional live public reporting, and improved globe controls.</p>
           <div class="toolbar">
             <input id="searchBox" type="text" placeholder="Search country..." />
             <select id="riskFilter">
               <option value="all">All risk bands</option>
               <option value="high">High risk only</option>
               <option value="medium">Medium + high</option>
+            </select>
+            <select id="rotationToggle">
+              <option value="on">Rotation: On</option>
+              <option value="off">Rotation: Off</option>
             </select>
           </div>
         </div>
@@ -188,6 +192,7 @@
         <div class="tabbar">
           <button class="tab-btn active" data-tab="overview">Overview</button>
           <button class="tab-btn" data-tab="profile">Profile</button>
+          <button class="tab-btn" data-tab="climate">Climate</button>
           <button class="tab-btn" data-tab="intel">Intel Feed</button>
         </div>
 
@@ -212,6 +217,9 @@
             <div class="meta"><span>Active Conflicts</span><strong id="conflictVal">-</strong></div>
             <div class="meta"><span>Risk Band</span><strong id="bandVal">-</strong></div>
             <div class="meta"><span>Region</span><strong id="regionVal">-</strong></div>
+            <div class="meta"><span>Government Type</span><strong id="govTypeVal">-</strong></div>
+            <div class="meta"><span>Sanctions Status</span><strong id="sanctionsVal">-</strong></div>
+            <div class="meta"><span>Border Risk</span><strong id="borderRiskVal">-</strong></div>
           </div>
         </div>
 
@@ -236,6 +244,23 @@
           <div class="watch">
             <input type="checkbox" id="watchCheck" style="width:auto;" />
             <label for="watchCheck" style="display:inline; color:inherit;">Add this country to local watchlist</label>
+          </div>
+        </div>
+
+        <div class="tab-pane" id="tab-climate">
+          <div class="meta-grid">
+            <div class="meta"><span>Avg Temperature</span><strong id="avgTempVal">-</strong></div>
+            <div class="meta"><span>Avg Rainfall</span><strong id="avgRainVal">-</strong></div>
+            <div class="meta"><span>Wet Season</span><strong id="wetSeasonVal">-</strong></div>
+            <div class="meta"><span>Dry Season</span><strong id="drySeasonVal">-</strong></div>
+            <div class="meta"><span>Storm Season</span><strong id="stormSeasonVal">-</strong></div>
+            <div class="meta"><span>Heat Risk</span><strong id="heatRiskVal">-</strong></div>
+            <div class="meta"><span>Flood Risk</span><strong id="floodRiskVal">-</strong></div>
+            <div class="meta"><span>Drought Risk</span><strong id="droughtRiskVal">-</strong></div>
+          </div>
+          <div class="chipbox">
+            <div class="section-title">Seasonal Hazard Indicators</div>
+            <div class="chips" id="hazardChips"></div>
           </div>
         </div>
 
@@ -502,6 +527,177 @@ function formatBarrelsPerDay(value) {
   return new Intl.NumberFormat("en-GB").format(value) + " bbl/day";
 }
 
+
+const governmentTypeMap = {
+  "United States": "Federal presidential republic",
+  "United Kingdom": "Constitutional monarchy",
+  "France": "Semi-presidential republic",
+  "Germany": "Federal parliamentary republic",
+  "Italy": "Parliamentary republic",
+  "Spain": "Constitutional monarchy",
+  "Russia": "Federal semi-presidential republic",
+  "China": "One-party socialist state",
+  "India": "Federal parliamentary republic",
+  "Pakistan": "Federal parliamentary republic",
+  "Iran": "Islamic republic",
+  "Israel": "Parliamentary republic",
+  "Saudi Arabia": "Absolute monarchy",
+  "Turkey": "Presidential republic",
+  "Ukraine": "Semi-presidential republic",
+  "Japan": "Constitutional monarchy",
+  "South Korea": "Presidential republic",
+  "North Korea": "One-party state",
+  "Brazil": "Federal presidential republic",
+  "Canada": "Constitutional monarchy",
+  "Australia": "Constitutional monarchy",
+  "Tunisia": "Presidential republic",
+  "Egypt": "Presidential republic",
+  "Nigeria": "Federal presidential republic",
+  "South Africa": "Parliamentary republic",
+  "United Arab Emirates": "Federal monarchy"
+};
+
+const sanctionsStatusMap = {
+  "Russia": "Heavy sanctions",
+  "Iran": "Heavy sanctions",
+  "North Korea": "Heavy sanctions",
+  "Syria": "Heavy sanctions",
+  "Belarus": "Heavy sanctions",
+  "Venezuela": "Limited sanctions",
+  "Myanmar": "Limited sanctions",
+  "China": "Limited sanctions",
+  "Sudan": "Limited sanctions",
+  "Afghanistan": "Limited sanctions",
+  "United States": "None",
+  "United Kingdom": "None",
+  "France": "None",
+  "Germany": "None",
+  "Japan": "None",
+  "India": "Limited sanctions",
+  "Israel": "None",
+  "Saudi Arabia": "Limited sanctions",
+  "Turkey": "Limited sanctions"
+};
+
+const majorCitiesMap = {
+  "United States": ["New York", "Los Angeles", "Chicago", "Houston", "Washington DC"],
+  "United Kingdom": ["London", "Manchester", "Birmingham", "Glasgow", "Liverpool"],
+  "France": ["Paris", "Marseille", "Lyon", "Toulouse", "Nice"],
+  "Germany": ["Berlin", "Hamburg", "Munich", "Cologne", "Frankfurt"],
+  "Italy": ["Rome", "Milan", "Naples", "Turin", "Palermo"],
+  "Spain": ["Madrid", "Barcelona", "Valencia", "Seville", "Bilbao"],
+  "Russia": ["Moscow", "Saint Petersburg", "Novosibirsk", "Yekaterinburg", "Kazan"],
+  "China": ["Beijing", "Shanghai", "Shenzhen", "Guangzhou", "Chengdu"],
+  "India": ["Delhi", "Mumbai", "Bengaluru", "Hyderabad", "Chennai"],
+  "Pakistan": ["Karachi", "Lahore", "Islamabad", "Rawalpindi", "Peshawar"],
+  "Iran": ["Tehran", "Mashhad", "Isfahan", "Tabriz", "Shiraz"],
+  "Israel": ["Jerusalem", "Tel Aviv", "Haifa", "Beersheba", "Ashdod"],
+  "Saudi Arabia": ["Riyadh", "Jeddah", "Mecca", "Medina", "Dammam"],
+  "Turkey": ["Istanbul", "Ankara", "Izmir", "Bursa", "Gaziantep"],
+  "Ukraine": ["Kyiv", "Kharkiv", "Odesa", "Dnipro", "Lviv"],
+  "Japan": ["Tokyo", "Osaka", "Nagoya", "Yokohama", "Sapporo"],
+  "South Korea": ["Seoul", "Busan", "Incheon", "Daegu", "Daejeon"],
+  "Brazil": ["São Paulo", "Rio de Janeiro", "Brasília", "Salvador", "Belo Horizonte"],
+  "Canada": ["Toronto", "Montreal", "Vancouver", "Calgary", "Ottawa"],
+  "Australia": ["Sydney", "Melbourne", "Brisbane", "Perth", "Canberra"],
+  "Tunisia": ["Tunis", "Sfax", "Sousse", "Bizerte", "Nabeul"],
+  "Egypt": ["Cairo", "Alexandria", "Giza", "Port Said", "Suez"],
+  "Nigeria": ["Lagos", "Abuja", "Kano", "Port Harcourt", "Ibadan"],
+  "South Africa": ["Johannesburg", "Cape Town", "Durban", "Pretoria", "Port Elizabeth"]
+};
+
+const keyExportsMap = {
+  "United States": ["Aircraft", "Crude oil", "Refined petroleum", "Technology", "Machinery"],
+  "United Kingdom": ["Financial services", "Pharmaceuticals", "Cars", "Machinery", "Crude oil"],
+  "France": ["Aircraft", "Luxury goods", "Pharmaceuticals", "Wine", "Machinery"],
+  "Germany": ["Cars", "Machinery", "Chemicals", "Electronics", "Pharmaceuticals"],
+  "Italy": ["Machinery", "Cars", "Fashion", "Pharmaceuticals", "Food products"],
+  "Spain": ["Cars", "Food products", "Machinery", "Chemicals", "Tourism services"],
+  "Russia": ["Crude oil", "Natural gas", "Coal", "Metals", "Wheat"],
+  "China": ["Electronics", "Machinery", "Textiles", "Solar equipment", "Consumer goods"],
+  "India": ["Refined petroleum", "Pharmaceuticals", "Textiles", "IT services", "Rice"],
+  "Pakistan": ["Textiles", "Rice", "Leather", "Surgical instruments", "Sports goods"],
+  "Iran": ["Crude oil", "Petrochemicals", "Natural gas", "Metals", "Agriculture"],
+  "Israel": ["Technology", "Diamonds", "Chemicals", "Medical devices", "Defense systems"],
+  "Saudi Arabia": ["Crude oil", "Petrochemicals", "Plastics", "Fertilizers", "Refined fuels"],
+  "Turkey": ["Cars", "Textiles", "Machinery", "Steel", "Food products"],
+  "Ukraine": ["Wheat", "Corn", "Sunflower oil", "Metals", "Machinery"],
+  "Japan": ["Cars", "Electronics", "Machinery", "Optics", "Chemicals"],
+  "South Korea": ["Semiconductors", "Cars", "Ships", "Electronics", "Petrochemicals"],
+  "Brazil": ["Soybeans", "Iron ore", "Crude oil", "Beef", "Sugar"],
+  "Canada": ["Crude oil", "Cars", "Timber", "Natural gas", "Wheat"],
+  "Australia": ["Iron ore", "Coal", "Natural gas", "Gold", "Education services"],
+  "Tunisia": ["Olive oil", "Phosphates", "Textiles", "Electrical components", "Dates"],
+  "Egypt": ["Natural gas", "Petroleum", "Fertilizers", "Textiles", "Agriculture"],
+  "Nigeria": ["Crude oil", "Natural gas", "Cocoa", "Rubber", "Sesame"],
+  "South Africa": ["Gold", "Platinum", "Coal", "Cars", "Iron ore"]
+};
+
+function getGovernmentType(country){
+  return governmentTypeMap[country.name] || "Government type not mapped";
+}
+
+function getSanctionsStatus(country){
+  return sanctionsStatusMap[country.name] || "None known";
+}
+
+function getMajorCities(country){
+  return majorCitiesMap[country.name] || ["Major cities not mapped"];
+}
+
+function getKeyExports(country){
+  return keyExportsMap[country.name] || ["Key exports not mapped"];
+}
+
+function getBorderRisk(country){
+  const neighbors = (country.borders || []).map(code => enrichedCountries.find(x => x.alpha3 === code)).filter(Boolean);
+  if (!neighbors.length) return "Low";
+  const avg = neighbors.reduce((sum, n) => sum + (n.overallRisk || 0), 0) / neighbors.length;
+  if (avg >= 7) return "High";
+  if (avg >= 4) return "Medium";
+  return "Low";
+}
+
+
+const climateDataMap = {
+  "United Kingdom": {avgTemp:"9°C", avgRain:"1,150 mm", wet:"October–January", dry:"April–June", storm:"Autumn–Winter Atlantic storms", heat:"Low", flood:"Medium", drought:"Low", hazards:["Atlantic storms", "Winter flooding", "Occasional heatwaves"]},
+  "United States": {avgTemp:"13°C", avgRain:"715 mm", wet:"Varies by region", dry:"Varies by region", storm:"June–November hurricanes", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Hurricane season", "Tornado season", "Wildfires", "Heatwaves"]},
+  "France": {avgTemp:"12°C", avgRain:"867 mm", wet:"October–December", dry:"July–August", storm:"Autumn storm periods", heat:"Medium", flood:"Medium", drought:"Low", hazards:["Heatwaves", "River flooding", "Mediterranean storms"]},
+  "Germany": {avgTemp:"9°C", avgRain:"700 mm", wet:"June–August", dry:"February–April", storm:"Winter storm periods", heat:"Low", flood:"Medium", drought:"Low", hazards:["River flooding", "Winter storms"]},
+  "Italy": {avgTemp:"13°C", avgRain:"830 mm", wet:"October–November", dry:"July–August", storm:"Autumn Mediterranean storms", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Heatwaves", "Flash floods", "Coastal storms"]},
+  "Spain": {avgTemp:"15°C", avgRain:"636 mm", wet:"October–April", dry:"June–August", storm:"Autumn Mediterranean storms", heat:"High", flood:"Medium", drought:"High", hazards:["Heatwaves", "Drought", "Flash flooding"]},
+  "Russia": {avgTemp:"-5°C to 5°C", avgRain:"460 mm", wet:"June–August", dry:"Varies by region", storm:"Winter storm periods", heat:"Low", flood:"Medium", drought:"Low", hazards:["Extreme cold", "Snowstorms", "Spring flooding"]},
+  "China": {avgTemp:"7°C to 15°C", avgRain:"645 mm", wet:"May–September", dry:"October–March", storm:"May–October typhoon season", heat:"Medium", flood:"High", drought:"Medium", hazards:["Typhoons", "Monsoon flooding", "Heatwaves"]},
+  "India": {avgTemp:"24°C", avgRain:"1,083 mm", wet:"June–September", dry:"November–April", storm:"April–December cyclone periods", heat:"High", flood:"High", drought:"Medium", hazards:["Monsoon season", "Cyclones", "Heatwaves", "Flooding"]},
+  "Pakistan": {avgTemp:"21°C", avgRain:"494 mm", wet:"July–September", dry:"October–May", storm:"Monsoon season", heat:"High", flood:"High", drought:"High", hazards:["Monsoon flooding", "Extreme heat", "Drought"]},
+  "Iran": {avgTemp:"17°C", avgRain:"228 mm", wet:"November–April", dry:"May–October", storm:"Occasional winter storm systems", heat:"High", flood:"Medium", drought:"High", hazards:["Drought", "Heatwaves", "Flash flooding"]},
+  "Israel": {avgTemp:"20°C", avgRain:"435 mm", wet:"November–March", dry:"April–October", storm:"Occasional winter storm systems", heat:"High", flood:"Low", drought:"Medium", hazards:["Heatwaves", "Drought", "Flash floods in desert regions"]},
+  "Saudi Arabia": {avgTemp:"26°C", avgRain:"59 mm", wet:"Minimal seasonal rain", dry:"Most of year", storm:"None major", heat:"High", flood:"Low", drought:"High", hazards:["Extreme heat", "Drought", "Dust storms"]},
+  "Turkey": {avgTemp:"13°C", avgRain:"574 mm", wet:"October–March", dry:"June–September", storm:"Winter Black Sea/Mediterranean storms", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Heatwaves", "Flooding", "Winter storms"]},
+  "Ukraine": {avgTemp:"8°C", avgRain:"565 mm", wet:"May–July", dry:"January–March", storm:"Winter storm periods", heat:"Low", flood:"Medium", drought:"Low", hazards:["Snowstorms", "Spring flooding", "Cold snaps"]},
+  "Japan": {avgTemp:"12°C", avgRain:"1,668 mm", wet:"June–July", dry:"December–February", storm:"May–October typhoon season", heat:"Medium", flood:"High", drought:"Low", hazards:["Typhoons", "Heavy rain", "Flooding", "Heatwaves"]},
+  "South Korea": {avgTemp:"12°C", avgRain:"1,300 mm", wet:"June–August", dry:"November–March", storm:"July–September typhoon risk", heat:"Medium", flood:"Medium", drought:"Low", hazards:["Monsoon rains", "Typhoon remnants", "Heatwaves"]},
+  "Brazil": {avgTemp:"25°C", avgRain:"1,761 mm", wet:"December–March", dry:"June–August", storm:"Tropical storm risk limited", heat:"Medium", flood:"High", drought:"Medium", hazards:["Flooding", "Landslides", "Drought in northeast"]},
+  "Canada": {avgTemp:"-5°C to 6°C", avgRain:"537 mm", wet:"Varies by region", dry:"Varies by region", storm:"Winter storm season", heat:"Low", flood:"Medium", drought:"Low", hazards:["Snowstorms", "Wildfires", "Spring flooding"]},
+  "Australia": {avgTemp:"21°C", avgRain:"534 mm", wet:"November–April north", dry:"May–October north", storm:"November–April cyclone season", heat:"High", flood:"Medium", drought:"High", hazards:["Cyclones", "Bushfires", "Heatwaves", "Drought"]},
+  "Tunisia": {avgTemp:"19°C", avgRain:"207 mm", wet:"October–January", dry:"May–September", storm:"Occasional autumn storm systems", heat:"High", flood:"Low", drought:"Medium", hazards:["Heatwaves", "Drought", "Flash flooding"]},
+  "Egypt": {avgTemp:"22°C", avgRain:"51 mm", wet:"Minimal seasonal rain", dry:"Most of year", storm:"Occasional Mediterranean winter systems", heat:"High", flood:"Low", drought:"High", hazards:["Extreme heat", "Drought", "Dust storms"]},
+  "Nigeria": {avgTemp:"27°C", avgRain:"1,150 mm", wet:"April–October", dry:"November–March", storm:"Major tropical storm risk low", heat:"High", flood:"High", drought:"Medium", hazards:["Seasonal flooding", "Heat stress", "Drought in the north"]},
+  "South Africa": {avgTemp:"17°C", avgRain:"464 mm", wet:"October–March", dry:"May–August", storm:"Summer thunderstorm season", heat:"Medium", flood:"Medium", drought:"High", hazards:["Drought", "Wildfires", "Flash floods"]},
+  "Ukraine": {avgTemp:"8°C", avgRain:"565 mm", wet:"May–July", dry:"January–March", storm:"Winter storm periods", heat:"Low", flood:"Medium", drought:"Low", hazards:["Snowstorms", "Spring flooding", "Cold snaps"]}
+};
+
+function estimateClimate(country){
+  const regionDefaults = {
+    "Europe": {avgTemp:"10°C", avgRain:"800 mm", wet:"October–January", dry:"April–June", storm:"Winter storm periods", heat:"Low", flood:"Medium", drought:"Low", hazards:["Winter storms", "River flooding"]},
+    "Americas": {avgTemp:"18°C", avgRain:"1,000 mm", wet:"Varies by region", dry:"Varies by region", storm:"Hurricane season varies", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Storms", "Flooding", "Heatwaves"]},
+    "Asia": {avgTemp:"20°C", avgRain:"900 mm", wet:"May–September", dry:"October–March", storm:"Typhoon/cyclone exposure varies", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Monsoon rains", "Storms", "Heatwaves"]},
+    "Africa": {avgTemp:"24°C", avgRain:"600 mm", wet:"Varies by latitude", dry:"Varies by latitude", storm:"Cyclone exposure region-specific", heat:"High", flood:"Medium", drought:"High", hazards:["Heat stress", "Drought", "Flooding"]},
+    "Oceania": {avgTemp:"21°C", avgRain:"900 mm", wet:"Varies by region", dry:"Varies by region", storm:"Cyclone season varies", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Cyclones", "Heatwaves", "Bushfires"]}
+  };
+  return climateDataMap[country.name] || regionDefaults[country.region] || {avgTemp:"N/A", avgRain:"N/A", wet:"N/A", dry:"N/A", storm:"N/A", heat:"N/A", flood:"N/A", drought:"N/A", hazards:["No climate data mapped"]};
+}
+
 const regionDefaults = {
   "Europe": { safety: 8.0, economic: 7.8, political: 7.6 },
   "Americas": { safety: 6.5, economic: 6.8, political: 6.4 },
@@ -513,7 +709,8 @@ const regionDefaults = {
 const state = {
   globe: null,
   country: null,
-  filtered: []
+  filtered: [],
+  autoRotateEnabled: true
 };
 
 function getSavedNotes() {
@@ -636,6 +833,19 @@ function renderCountry(c) {
   document.getElementById("conflictVal").textContent = strat.conflict;
   document.getElementById("bandVal").textContent = riskBand(c.overallRisk);
   document.getElementById("regionVal").textContent = c.region || "N/A";
+  document.getElementById("govTypeVal").textContent = getGovernmentType(c);
+  document.getElementById("sanctionsVal").textContent = getSanctionsStatus(c);
+  document.getElementById("borderRiskVal").textContent = getBorderRisk(c);
+
+  const climate = estimateClimate(c);
+  document.getElementById("avgTempVal").textContent = climate.avgTemp;
+  document.getElementById("avgRainVal").textContent = climate.avgRain;
+  document.getElementById("wetSeasonVal").textContent = climate.wet;
+  document.getElementById("drySeasonVal").textContent = climate.dry;
+  document.getElementById("stormSeasonVal").textContent = climate.storm;
+  document.getElementById("heatRiskVal").textContent = climate.heat;
+  document.getElementById("floodRiskVal").textContent = climate.flood;
+  document.getElementById("droughtRiskVal").textContent = climate.drought;
 
   const currencyChips = document.getElementById("currencyChips");
   currencyChips.innerHTML = "";
@@ -653,6 +863,18 @@ function renderCountry(c) {
   });
   (neighbors.length ? neighbors : ["No land-border data"]).forEach(x => neighborChips.appendChild(makeChip(x)));
 
+  const cityChips = document.getElementById("cityChips");
+  cityChips.innerHTML = "";
+  getMajorCities(c).forEach(x => cityChips.appendChild(makeChip(x)));
+
+  const exportChips = document.getElementById("exportChips");
+  exportChips.innerHTML = "";
+  getKeyExports(c).forEach(x => exportChips.appendChild(makeChip(x)));
+
+  const hazardChips = document.getElementById("hazardChips");
+  hazardChips.innerHTML = "";
+  estimateClimate(c).hazards.forEach(x => hazardChips.appendChild(makeChip(x)));
+
   const rivalChips = document.getElementById("rivalChips");
   rivalChips.innerHTML = "";
   const rivals = getRivalNations(c.name);
@@ -668,7 +890,8 @@ function renderCountry(c) {
   document.getElementById("watchCheck").checked = getWatchlist().includes(c.alpha3);
 
   if (state.globe) {
-    state.globe.pointOfView({ lat: c.lat, lng: c.lng, altitude: 1.45 }, 1100);
+    pauseAutoRotate();
+    state.globe.pointOfView({ lat: c.lat, lng: c.lng, altitude: 1.45 }, 1400);
   }
 
   loadIntel(c);
@@ -705,6 +928,19 @@ async function loadIntel(c) {
   }
 }
 
+function setAutoRotate(enabled) {
+  state.autoRotateEnabled = enabled;
+  if (!state.globe) return;
+  state.globe.controls().autoRotate = enabled;
+  state.globe.controls().autoRotateSpeed = enabled ? 0.10 : 0;
+  const toggle = document.getElementById("rotationToggle");
+  if (toggle) toggle.value = enabled ? "on" : "off";
+}
+
+function pauseAutoRotate() {
+  setAutoRotate(false);
+}
+
 function initGlobe() {
   const globe = Globe()(document.getElementById("globeViz"))
     .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-night.jpg")
@@ -719,11 +955,20 @@ function initGlobe() {
     .pointRadius(d => riskBand(d.overallRisk) === "High" ? 0.27 : riskBand(d.overallRisk) === "Medium" ? 0.17 : 0.1)
     .pointColor(d => markerColor(d))
     .pointLabel(d => `${d.name}<br/>Overall risk: ${d.overallRisk}/10<br/>Travel: ${d.travel.label}`)
-    .onPointClick(d => renderCountry(d));
+    .onPointClick(d => {
+      pauseAutoRotate();
+      renderCountry(d);
+    });
 
   globe.controls().autoRotate = true;
-  globe.controls().autoRotateSpeed = 0.35;
+  globe.controls().autoRotateSpeed = 0.10;
   state.globe = globe;
+
+  const canvas = document.querySelector("#globeViz canvas");
+  if (canvas) {
+    canvas.addEventListener("pointerdown", () => pauseAutoRotate());
+    canvas.addEventListener("wheel", () => pauseAutoRotate(), { passive: true });
+  }
 }
 
 document.addEventListener("click", (e) => {
@@ -736,6 +981,9 @@ document.addEventListener("click", (e) => {
 
 document.getElementById("searchBox").addEventListener("input", applyFilter);
 document.getElementById("riskFilter").addEventListener("change", applyFilter);
+document.getElementById("rotationToggle").addEventListener("change", (e) => {
+  setAutoRotate(e.target.value === "on");
+});
 
 document.getElementById("saveNotes").addEventListener("click", () => {
   if (!state.country) return;
@@ -765,6 +1013,7 @@ document.getElementById("watchCheck").addEventListener("change", (e) => {
 });
 
 initGlobe();
+setAutoRotate(true);
 applyFilter();
 renderCountry(enrichedCountries.find(c => c.name === "United Kingdom") || enrichedCountries[0]);
 </script>
