@@ -41,7 +41,7 @@
     }
     .left { position: relative; min-height: 760px; }
     #globeViz { width: 100%; height: 100%; min-height: 760px; }
-    .overlay {
+    .overlay { z-index:2;
       position: absolute; inset: 0 auto auto 0; padding: 14px;
       width: min(640px, calc(100% - 28px)); pointer-events: none;
     }
@@ -136,103 +136,56 @@
       .left, #globeViz { min-height: 520px; }
       .toolbar { grid-template-columns: 1fr; }
     }
+  
+@media (max-width:768px){
 
-    @media (max-width: 768px) {
-      .app {
-        grid-template-columns: 1fr;
-        padding: 10px;
-        gap: 10px;
-      }
-      .panel { border-radius: 16px; }
-      .left {
-        min-height: auto;
-        display: flex;
-        flex-direction: column;
-        overflow: visible;
-      }
-      .overlay {
-        position: relative;
-        inset: auto;
-        width: 100%;
-        padding: 10px 10px 0;
-        pointer-events: auto;
-      }
-      .titlebox {
-        padding: 12px;
-        border-radius: 14px;
-      }
-      #globeViz {
-        min-height: 380px;
-        height: 380px;
-        margin: 10px;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        overflow: hidden;
-      }
-      h1 { font-size: 1.05rem; }
-      .sub {
-        font-size: .85rem;
-        line-height: 1.4;
-      }
-      .country-head {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .country-title { align-items: center; }
-      .flag-box {
-        width: 52px;
-        height: 38px;
-        font-size: 1.6rem;
-      }
-      .scores, .meta-grid { grid-template-columns: 1fr; }
-      .tabbar {
-        overflow-x: auto;
-        flex-wrap: nowrap;
-        padding-bottom: 4px;
-        scrollbar-width: thin;
-      }
-      .tab-btn {
-        flex: 0 0 auto;
-        min-height: 42px;
-        padding: 10px 14px;
-        font-size: .92rem;
-      }
-      .chipbox { padding: 10px; }
-      .chips { gap: 6px; }
-      .chip {
-        font-size: .82rem;
-        padding: 7px 9px;
-      }
-      .badge { align-self: flex-start; }
-      .card { padding: 12px; }
-      .score, .meta, .intel-item, .danger-box, .chipbox, .link-grid a {
-        border-radius: 12px;
-      }
-      .row-actions { flex-direction: column; }
-      button, input, select, textarea { min-height: 44px; }
-      .link-grid { grid-template-columns: 1fr; }
-      .legend {
-        position: static;
-        margin: 0 10px 10px;
-        gap: 8px;
-        font-size: .8rem;
-      }
-    }
+.app{
+grid-template-columns:1fr;
+gap:12px;
+padding:10px;
+}
 
-    @media (max-width: 480px) {
-      #globeViz {
-        min-height: 340px;
-        height: 340px;
-        margin: 8px;
-      }
-      .overlay {
-        padding: 8px 8px 0;
-      }
-      .titlebox { padding: 10px; }
-      .country-head h2 { font-size: 1.15rem; }
-      .score strong { font-size: 1.35rem; }
-    }
-  </style>
+.overlay{
+position:relative;
+width:100%;
+margin-bottom:8px;
+}
+
+#globeViz{
+height:420px;
+border-radius:14px;
+border:1px solid rgba(255,255,255,.08);
+}
+
+.titlebox{
+padding:12px;
+}
+
+.sub{
+display:none;
+}
+
+.toolbar{
+grid-template-columns:1fr;
+gap:8px;
+}
+
+.tabbar{
+overflow-x:auto;
+flex-wrap:nowrap;
+}
+
+.meta-grid,.scores{
+grid-template-columns:1fr 1fr;
+}
+
+.country-head{
+gap:6px;
+}
+
+}
+
+</style>
 </head>
 <body>
   <div class="app">
@@ -241,7 +194,7 @@
       <div class="overlay">
         <div class="titlebox">
           <h1>Global Intelligence Hub V1.5</h1>
-          <p class="sub">3D globe intelligence dashboard with country risk, military, climate, and profile data.</p>
+          <p class="sub">Built from the simpler Version 1 approach: 3D globe, embedded country dataset, country risk overview, better country stats, local notes, optional live public reporting, and improved globe controls.</p>
           <div class="toolbar">
             <input id="searchBox" type="text" placeholder="Search country..." />
             <select id="riskFilter">
@@ -806,15 +759,8 @@ const state = {
   globe: null,
   country: null,
   filtered: [],
-  autoRotateEnabled: true,
-  isMobile: false
+  autoRotateEnabled: true
 };
-
-function detectMobileMode() {
-  const touchCapable = window.matchMedia("(pointer: coarse)").matches;
-  const narrow = window.innerWidth <= 768;
-  return touchCapable || narrow;
-}
 
 function getSavedNotes() {
   try { return JSON.parse(localStorage.getItem("intelhub_notes_v15") || "{}"); } catch { return {}; }
@@ -994,8 +940,7 @@ function renderCountry(c) {
 
   if (state.globe) {
     pauseAutoRotate();
-    const altitude = state.isMobile ? 1.75 : 1.45;
-    state.globe.pointOfView({ lat: c.lat, lng: c.lng, altitude }, 1400);
+    state.globe.pointOfView({ lat: c.lat, lng: c.lng, altitude: 1.45 }, 1400);
   }
 
   loadIntel(c);
@@ -1036,23 +981,13 @@ function setAutoRotate(enabled) {
   state.autoRotateEnabled = enabled;
   if (!state.globe) return;
   state.globe.controls().autoRotate = enabled;
-  state.globe.controls().autoRotateSpeed = enabled ? 0.08 : 0;
+  state.globe.controls().autoRotateSpeed = enabled ? 0.10 : 0;
   const toggle = document.getElementById("rotationToggle");
   if (toggle) toggle.value = enabled ? "on" : "off";
 }
 
 function pauseAutoRotate() {
   setAutoRotate(false);
-}
-
-function applyMobileDefaults() {
-  state.isMobile = detectMobileMode();
-  if (state.isMobile) {
-    setAutoRotate(false);
-  } else {
-    const toggle = document.getElementById("rotationToggle");
-    setAutoRotate(!toggle || toggle.value === "on");
-  }
 }
 
 function initGlobe() {
@@ -1075,18 +1010,14 @@ function initGlobe() {
     });
 
   globe.controls().autoRotate = true;
-  globe.controls().autoRotateSpeed = 0.08;
-  globe.controls().enablePan = false;
+  globe.controls().autoRotateSpeed = 0.10;
   state.globe = globe;
 
   const canvas = document.querySelector("#globeViz canvas");
   if (canvas) {
     canvas.addEventListener("pointerdown", () => pauseAutoRotate());
     canvas.addEventListener("wheel", () => pauseAutoRotate(), { passive: true });
-    canvas.style.touchAction = "pan-y";
   }
-
-  applyMobileDefaults();
 }
 
 document.addEventListener("click", (e) => {
@@ -1101,15 +1032,6 @@ document.getElementById("searchBox").addEventListener("input", applyFilter);
 document.getElementById("riskFilter").addEventListener("change", applyFilter);
 document.getElementById("rotationToggle").addEventListener("change", (e) => {
   setAutoRotate(e.target.value === "on");
-});
-
-window.addEventListener("resize", () => {
-  const wasMobile = state.isMobile;
-  applyMobileDefaults();
-  if (state.globe && state.country && wasMobile !== state.isMobile) {
-    const altitude = state.isMobile ? 1.75 : 1.45;
-    state.globe.pointOfView({ lat: state.country.lat, lng: state.country.lng, altitude }, 400);
-  }
 });
 
 document.getElementById("saveNotes").addEventListener("click", () => {
@@ -1140,6 +1062,7 @@ document.getElementById("watchCheck").addEventListener("change", (e) => {
 });
 
 initGlobe();
+setAutoRotate(true);
 applyFilter();
 renderCountry(enrichedCountries.find(c => c.name === "United Kingdom") || enrichedCountries[0]);
 </script>
