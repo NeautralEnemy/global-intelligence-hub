@@ -6,7 +6,6 @@
   <title>Global Intelligence Hub V1.5</title>
   <script src="https://unpkg.com/three"></script>
   <script src="https://unpkg.com/globe.gl"></script>
-  <script src="https://unpkg.com/three-globe"></script>
   <style>
     * { box-sizing: border-box; }
     :root {
@@ -53,7 +52,7 @@
     h1 { margin: 0 0 8px; font-size: 1.35rem; }
     .sub { margin: 0; color: var(--muted); line-height: 1.45; font-size: .95rem; }
     .toolbar {
-      display: grid; grid-template-columns: 1fr 170px 170px 170px; gap: 10px; margin-top: 12px;
+      display: grid; grid-template-columns: 1fr 170px 170px; gap: 10px; margin-top: 12px;
     }
     input, select, textarea {
       width: 100%; background: var(--panel2); color: var(--text);
@@ -137,6 +136,93 @@
       .left, #globeViz { min-height: 520px; }
       .toolbar { grid-template-columns: 1fr; }
     }
+
+    @media (max-width: 768px) {
+      .app {
+        grid-template-columns: 1fr;
+        padding: 10px;
+        gap: 10px;
+      }
+      .panel { border-radius: 16px; }
+      .left { min-height: 360px; }
+      #globeViz {
+        min-height: 360px;
+        height: 360px;
+      }
+      .overlay {
+        width: calc(100% - 20px);
+        padding: 10px;
+      }
+      .titlebox {
+        padding: 12px;
+        border-radius: 14px;
+      }
+      h1 { font-size: 1.1rem; }
+      .sub { font-size: .88rem; }
+      .country-head {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .country-title { align-items: center; }
+      .flag-box {
+        width: 52px;
+        height: 38px;
+        font-size: 1.6rem;
+      }
+      .scores, .meta-grid { grid-template-columns: 1fr; }
+      .tabbar {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+      }
+      .tab-btn {
+        flex: 0 0 auto;
+        min-height: 42px;
+        padding: 10px 14px;
+        font-size: .92rem;
+      }
+      .chipbox { padding: 10px; }
+      .chips { gap: 6px; }
+      .chip {
+        font-size: .82rem;
+        padding: 7px 9px;
+      }
+      .badge { align-self: flex-start; }
+      .card { padding: 12px; }
+      .score, .meta, .intel-item, .danger-box, .chipbox, .link-grid a {
+        border-radius: 12px;
+      }
+      .row-actions { flex-direction: column; }
+      button, input, select, textarea { min-height: 44px; }
+      .link-grid { grid-template-columns: 1fr; }
+      .legend {
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        gap: 8px;
+        font-size: .8rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .left { min-height: 300px; }
+      #globeViz {
+        min-height: 300px;
+        height: 300px;
+      }
+      .overlay {
+        padding: 8px;
+        width: calc(100% - 16px);
+      }
+      .titlebox { padding: 10px; }
+      .country-head h2 { font-size: 1.15rem; }
+      .score strong { font-size: 1.35rem; }
+      .legend {
+        position: static;
+        margin: 8px 8px 0;
+      }
+    }
   </style>
 </head>
 <body>
@@ -146,7 +232,7 @@
       <div class="overlay">
         <div class="titlebox">
           <h1>Global Intelligence Hub V1.5</h1>
-          <p class="sub">Built from the simpler Version 1 approach: 3D globe, embedded country dataset, country risk overview, better country stats, local notes, optional live public reporting, improved globe controls, sharper globe visuals, and country border overlays.</p>
+          <p class="sub">Built from the simpler Version 1 approach: 3D globe, embedded country dataset, country risk overview, better country stats, local notes, optional live public reporting, improved globe controls, and a mobile-friendly responsive layout.</p>
           <div class="toolbar">
             <input id="searchBox" type="text" placeholder="Search country..." />
             <select id="riskFilter">
@@ -158,11 +244,6 @@
               <option value="on">Rotation: On</option>
               <option value="off">Rotation: Off</option>
             </select>
-            <select id="mapStyle">
-              <option value="risk">Risk map</option>
-              <option value="borders">Borders only</option>
-            </select>
-                      <div style="margin-top:10px;color:var(--muted);font-size:.84rem;" id="globeStatus">Enhanced visual globe loading…</div>
           </div>
         </div>
       </div>
@@ -694,100 +775,7 @@ const climateDataMap = {
 };
 
 function estimateClimate(country){
-  
-const COUNTRY_BORDER_GEOJSON_URL = "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson";
-
-const statePolygons = {
-  geojson: null,
-  filteredPolygons: []
-};
-
-function getRiskFillColor(c){
-  const band = riskBand(c.overallRisk);
-  if (band === "High") return "rgba(216,79,79,0.78)";
-  if (band === "Medium") return "rgba(216,171,47,0.62)";
-  return "rgba(42,182,115,0.22)";
-}
-
-function normalizeFeatureName(name){
-  const fixes = {
-    "United States of America": "United States",
-    "Dem. Rep. Congo": "DR Congo",
-    "Dominican Rep.": "Dominican Republic",
-    "Bosnia and Herz.": "Bosnia and Herzegovina",
-    "Central African Rep.": "Central African Republic",
-    "Eq. Guinea": "Equatorial Guinea",
-    "S. Sudan": "South Sudan",
-    "Solomon Is.": "Solomon Islands",
-    "eSwatini": "Eswatini",
-    "Czechia": "Czech Republic"
-  };
-  return fixes[name] || name;
-}
-
-function getFeatureName(feature){
-  return normalizeFeatureName((feature && feature.properties && (feature.properties.ADMIN || feature.properties.name)) || "");
-}
-
-async function loadCountryBorders(){
-  try {
-    const res = await fetch(COUNTRY_BORDER_GEOJSON_URL);
-    if (!res.ok) throw new Error("Border fetch failed");
-    const data = await res.json();
-    statePolygons.geojson = data;
-    document.getElementById("globeStatus").textContent = "Enhanced globe ready";
-    refreshPolygons();
-  } catch (err) {
-    console.error(err);
-    document.getElementById("globeStatus").textContent = "High-res globe active. Border overlay unavailable right now.";
-  }
-}
-
-function refreshPolygons(){
-  if (!state.globe || !statePolygons.geojson) return;
-
-  const nameSet = new Set(state.filtered.map(c => c.name));
-  statePolygons.filteredPolygons = (statePolygons.geojson.features || []).filter(f => nameSet.has(getFeatureName(f)));
-
-  const mode = document.getElementById("mapStyle").value;
-
-  state.globe
-    .polygonsData(statePolygons.filteredPolygons)
-    .polygonCapColor(f => {
-      const name = getFeatureName(f);
-      const country = enrichedCountries.find(c => c.name === name);
-      if (!country) return "rgba(255,255,255,0.04)";
-      if (state.country && state.country.name === name) return "rgba(99,179,255,0.82)";
-      return mode === "borders" ? "rgba(255,255,255,0.02)" : getRiskFillColor(country);
-    })
-    .polygonSideColor(() => "rgba(0,0,0,0.04)")
-    .polygonStrokeColor(f => {
-      const name = getFeatureName(f);
-      if (state.country && state.country.name === name) return "rgba(255,255,255,0.98)";
-      return "rgba(170,205,255,0.65)";
-    })
-    .polygonAltitude(f => {
-      const name = getFeatureName(f);
-      if (state.country && state.country.name === name) return 0.035;
-      return mode === "borders" ? 0.004 : 0.01;
-    })
-    .polygonLabel(f => {
-      const name = getFeatureName(f);
-      const country = enrichedCountries.find(c => c.name === name);
-      if (!country) return name;
-      return `${country.name}<br/>Risk: ${country.overallRisk}/10<br/>Travel: ${country.travel.label}`;
-    })
-    .onPolygonClick(f => {
-      const name = getFeatureName(f);
-      const found = enrichedCountries.find(c => c.name === name);
-      if (found) {
-        pauseAutoRotate();
-        renderCountry(found);
-      }
-    });
-}
-
-const regionDefaults = {
+  const regionDefaults = {
     "Europe": {avgTemp:"10°C", avgRain:"800 mm", wet:"October–January", dry:"April–June", storm:"Winter storm periods", heat:"Low", flood:"Medium", drought:"Low", hazards:["Winter storms", "River flooding"]},
     "Americas": {avgTemp:"18°C", avgRain:"1,000 mm", wet:"Varies by region", dry:"Varies by region", storm:"Hurricane season varies", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Storms", "Flooding", "Heatwaves"]},
     "Asia": {avgTemp:"20°C", avgRain:"900 mm", wet:"May–September", dry:"October–March", storm:"Typhoon/cyclone exposure varies", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Monsoon rains", "Storms", "Heatwaves"]},
@@ -795,99 +783,6 @@ const regionDefaults = {
     "Oceania": {avgTemp:"21°C", avgRain:"900 mm", wet:"Varies by region", dry:"Varies by region", storm:"Cyclone season varies", heat:"Medium", flood:"Medium", drought:"Medium", hazards:["Cyclones", "Heatwaves", "Bushfires"]}
   };
   return climateDataMap[country.name] || regionDefaults[country.region] || {avgTemp:"N/A", avgRain:"N/A", wet:"N/A", dry:"N/A", storm:"N/A", heat:"N/A", flood:"N/A", drought:"N/A", hazards:["No climate data mapped"]};
-}
-
-
-const COUNTRY_BORDER_GEOJSON_URL = "https://raw.githubusercontent.com/holtzy/D3-graph-gallery/master/DATA/world.geojson";
-
-const statePolygons = {
-  geojson: null,
-  filteredPolygons: []
-};
-
-function getRiskFillColor(c){
-  const band = riskBand(c.overallRisk);
-  if (band === "High") return "rgba(216,79,79,0.78)";
-  if (band === "Medium") return "rgba(216,171,47,0.62)";
-  return "rgba(42,182,115,0.22)";
-}
-
-function normalizeFeatureName(name){
-  const fixes = {
-    "United States of America": "United States",
-    "Dem. Rep. Congo": "DR Congo",
-    "Dominican Rep.": "Dominican Republic",
-    "Bosnia and Herz.": "Bosnia and Herzegovina",
-    "Central African Rep.": "Central African Republic",
-    "Eq. Guinea": "Equatorial Guinea",
-    "S. Sudan": "South Sudan",
-    "Solomon Is.": "Solomon Islands",
-    "eSwatini": "Eswatini",
-    "Czechia": "Czech Republic"
-  };
-  return fixes[name] || name;
-}
-
-function getFeatureName(feature){
-  return normalizeFeatureName((feature && feature.properties && (feature.properties.ADMIN || feature.properties.name)) || "");
-}
-
-async function loadCountryBorders(){
-  try {
-    const res = await fetch(COUNTRY_BORDER_GEOJSON_URL);
-    if (!res.ok) throw new Error("Border fetch failed");
-    const data = await res.json();
-    statePolygons.geojson = data;
-    document.getElementById("globeStatus").textContent = "Enhanced globe ready";
-    refreshPolygons();
-  } catch (err) {
-    console.error(err);
-    document.getElementById("globeStatus").textContent = "High-res globe active. Border overlay unavailable right now.";
-  }
-}
-
-function refreshPolygons(){
-  if (!state.globe || !statePolygons.geojson) return;
-
-  const nameSet = new Set(state.filtered.map(c => c.name));
-  statePolygons.filteredPolygons = (statePolygons.geojson.features || []).filter(f => nameSet.has(getFeatureName(f)));
-
-  const mode = document.getElementById("mapStyle").value;
-
-  state.globe
-    .polygonsData(statePolygons.filteredPolygons)
-    .polygonCapColor(f => {
-      const name = getFeatureName(f);
-      const country = enrichedCountries.find(c => c.name === name);
-      if (!country) return "rgba(255,255,255,0.04)";
-      if (state.country && state.country.name === name) return "rgba(99,179,255,0.82)";
-      return mode === "borders" ? "rgba(255,255,255,0.02)" : getRiskFillColor(country);
-    })
-    .polygonSideColor(() => "rgba(0,0,0,0.04)")
-    .polygonStrokeColor(f => {
-      const name = getFeatureName(f);
-      if (state.country && state.country.name === name) return "rgba(255,255,255,0.98)";
-      return "rgba(170,205,255,0.65)";
-    })
-    .polygonAltitude(f => {
-      const name = getFeatureName(f);
-      if (state.country && state.country.name === name) return 0.035;
-      return mode === "borders" ? 0.004 : 0.01;
-    })
-    .polygonLabel(f => {
-      const name = getFeatureName(f);
-      const country = enrichedCountries.find(c => c.name === name);
-      if (!country) return name;
-      return `${country.name}<br/>Risk: ${country.overallRisk}/10<br/>Travel: ${country.travel.label}`;
-    })
-    .onPolygonClick(f => {
-      const name = getFeatureName(f);
-      const found = enrichedCountries.find(c => c.name === name);
-      if (found) {
-        pauseAutoRotate();
-        renderCountry(found);
-      }
-    });
 }
 
 const regionDefaults = {
@@ -902,8 +797,15 @@ const state = {
   globe: null,
   country: null,
   filtered: [],
-  autoRotateEnabled: true
+  autoRotateEnabled: true,
+  isMobile: false
 };
+
+function detectMobileMode() {
+  const touchCapable = window.matchMedia("(pointer: coarse)").matches;
+  const narrow = window.innerWidth <= 768;
+  return touchCapable || narrow;
+}
 
 function getSavedNotes() {
   try { return JSON.parse(localStorage.getItem("intelhub_notes_v15") || "{}"); } catch { return {}; }
@@ -976,10 +878,7 @@ function applyFilter() {
     const riskMatch = filter === "all" || (filter === "high" && band === "High") || (filter === "medium" && (band === "High" || band === "Medium"));
     return nameMatch && riskMatch;
   });
-  if (state.globe) {
-    state.globe.pointsData(state.filtered);
-    refreshPolygons();
-  }
+  if (state.globe) state.globe.pointsData(state.filtered);
 }
 
 function makeChip(text) {
@@ -1086,8 +985,8 @@ function renderCountry(c) {
 
   if (state.globe) {
     pauseAutoRotate();
-    state.globe.pointOfView({ lat: c.lat, lng: c.lng, altitude: 1.45 }, 1400);
-    refreshPolygons();
+    const altitude = state.isMobile ? 1.75 : 1.45;
+    state.globe.pointOfView({ lat: c.lat, lng: c.lng, altitude }, 1400);
   }
 
   loadIntel(c);
@@ -1128,7 +1027,7 @@ function setAutoRotate(enabled) {
   state.autoRotateEnabled = enabled;
   if (!state.globe) return;
   state.globe.controls().autoRotate = enabled;
-  state.globe.controls().autoRotateSpeed = enabled ? 0.10 : 0;
+  state.globe.controls().autoRotateSpeed = enabled ? 0.08 : 0;
   const toggle = document.getElementById("rotationToggle");
   if (toggle) toggle.value = enabled ? "on" : "off";
 }
@@ -1137,18 +1036,28 @@ function pauseAutoRotate() {
   setAutoRotate(false);
 }
 
+function applyMobileDefaults() {
+  state.isMobile = detectMobileMode();
+  if (state.isMobile) {
+    setAutoRotate(false);
+  } else {
+    const toggle = document.getElementById("rotationToggle");
+    setAutoRotate(!toggle || toggle.value === "on");
+  }
+}
+
 function initGlobe() {
   const globe = Globe()(document.getElementById("globeViz"))
-    .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg")
+    .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-night.jpg")
     .backgroundColor("#071019")
     .showAtmosphere(true)
     .atmosphereColor("#63b3ff")
-    .atmosphereAltitude(0.12)
+    .atmosphereAltitude(0.16)
     .pointsData(enrichedCountries)
     .pointLat(d => d.lat)
     .pointLng(d => d.lng)
-    .pointAltitude(d => 0.02 + (d.overallRisk / 120))
-    .pointRadius(d => riskBand(d.overallRisk) === "High" ? 0.16 : riskBand(d.overallRisk) === "Medium" ? 0.11 : 0.06)
+    .pointAltitude(d => 0.025 + (d.overallRisk / 80))
+    .pointRadius(d => riskBand(d.overallRisk) === "High" ? 0.27 : riskBand(d.overallRisk) === "Medium" ? 0.17 : 0.1)
     .pointColor(d => markerColor(d))
     .pointLabel(d => `${d.name}<br/>Overall risk: ${d.overallRisk}/10<br/>Travel: ${d.travel.label}`)
     .onPointClick(d => {
@@ -1157,14 +1066,18 @@ function initGlobe() {
     });
 
   globe.controls().autoRotate = true;
-  globe.controls().autoRotateSpeed = 0.10;
+  globe.controls().autoRotateSpeed = 0.08;
+  globe.controls().enablePan = false;
   state.globe = globe;
 
   const canvas = document.querySelector("#globeViz canvas");
   if (canvas) {
     canvas.addEventListener("pointerdown", () => pauseAutoRotate());
     canvas.addEventListener("wheel", () => pauseAutoRotate(), { passive: true });
+    canvas.style.touchAction = "pan-y";
   }
+
+  applyMobileDefaults();
 }
 
 document.addEventListener("click", (e) => {
@@ -1180,8 +1093,14 @@ document.getElementById("riskFilter").addEventListener("change", applyFilter);
 document.getElementById("rotationToggle").addEventListener("change", (e) => {
   setAutoRotate(e.target.value === "on");
 });
-document.getElementById("mapStyle").addEventListener("change", () => {
-  refreshPolygons();
+
+window.addEventListener("resize", () => {
+  const wasMobile = state.isMobile;
+  applyMobileDefaults();
+  if (state.globe && state.country && wasMobile !== state.isMobile) {
+    const altitude = state.isMobile ? 1.75 : 1.45;
+    state.globe.pointOfView({ lat: state.country.lat, lng: state.country.lng, altitude }, 400);
+  }
 });
 
 document.getElementById("saveNotes").addEventListener("click", () => {
@@ -1212,10 +1131,8 @@ document.getElementById("watchCheck").addEventListener("change", (e) => {
 });
 
 initGlobe();
-setAutoRotate(true);
 applyFilter();
 renderCountry(enrichedCountries.find(c => c.name === "United Kingdom") || enrichedCountries[0]);
-loadCountryBorders();
 </script>
 </body>
 </html>
